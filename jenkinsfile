@@ -1,0 +1,127 @@
+pipeline {
+  agent any
+
+  options {
+    ansiColor('xterm')
+    timeout(time: 60, unit: 'MINUTES')
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+      }
+    }
+
+    stage('Ensure Tools') {
+      steps {
+        // Try to install ansible & terraform if missing (requires sudo on agent).
+        sh '''
+          if ! command -v ansible >/dev/null 2>&1; then
+            echo "Ansible missing — attempting to install..."
+            sudo apt-get update -y
+            sudo apt-get install -y software-properties-common -y
+            sudo add-apt-repository --yes --update ppa:ansible/ansible
+            sudo apt-get install -y ansible
+          else
+            echo "Ansible found: $(ansible --version | head -n1)"
+          fi
+
+          if ! command -v terraform >/dev/null 2>&1; then
+            echo "Terraform missing — attempting to install..."
+            sudo apt-get install -y wget unzip gnupg software-properties-common curl
+            curl -fsSL https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+            echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+            sudo apt-get update -y
+            sudo apt-get install -y terraform
+          else
+            echo "Terraform found: $(terraform -version | head -n1)"
+          fi
+        '''
+      }
+    }
+
+    stage('Terraform Init & Apply') {
+      steps {
+        // Use Jenkins stored AWS credentials
+        withCredentials([usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+          sh '''
+            export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+            export AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+            # init & apply in terraform directory
+            terraform -chdir=terraform init -input=false
+            terraform -chdir=terraform apply -auto-approve -input=false
+          '''
+        }
+      }
+    }
+
+    stage('Prepare Ansible Inventory') {
+      steps {
+        // Read terraform outputs and write inventory.ini in workspace root (group: ec2)
+        script {
+          def public_ip = sh(script: "terraform -chdir=terraform output -raw public_ip", returnStdout: true).trim()
+          def public_dns = sh(script: "terraform -chdir=terraform output -raw public_dns", returnStdout: true).trim()
+          if (!public_ip) {
+            error "Failed to get public_ip from terraform outputs"
+          }
+          echo "Terraform instance IP: ${public_ip}"
+          // write inventory.ini (overwrites existing); keep it minimal to avoid parsing errors
+          sh """
+            cat > inventory.ini <<EOF
+[ec2]
+${public_ip} ansible_user=ubuntu
+EOF
+            ls -la inventory.ini
+            cat inventory.ini
+          """
+          // expose values for next stage
+          env.INSTANCE_IP = public_ip
+          env.INSTANCE_DNS = public_dns
+        }
+      }
+    }
+
+    stage('Run Ansible Playbook') {
+      steps {
+        // Bind SSH private key credential and run ansible against inventory.ini group ec2
+        withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+          sh '''
+            # make key only readable
+            chmod 600 ${SSH_KEY} || true
+            echo "Using SSH key: ${SSH_KEY}, user: ${SSH_USER}"
+            # Run ansible (main.yml at repo root). Limit to group ec2.
+            ansible-playbook -i inventory.ini -l ec2 main.yml --private-key ${SSH_KEY} -e ansible_python_interpreter=/usr/bin/python3 -v
+          '''
+        }
+      }
+    }
+
+    stage('Show Site URL') {
+      steps {
+        script {
+          // prefer DNS if present
+          def dns = env.INSTANCE_DNS?.trim()
+          def ip  = env.INSTANCE_IP?.trim()
+          if (dns) {
+            echo "✅ Site should be live at: http://${dns}"
+          } else if (ip) {
+            echo "✅ Site should be live at: http://${ip}"
+          } else {
+            echo "⚠️ Could not determine site URL from terraform outputs."
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "Pipeline finished SUCCESS"
+    }
+    failure {
+      echo "Pipeline FAILED - check console logs"
+    }
+  }
+}
+
