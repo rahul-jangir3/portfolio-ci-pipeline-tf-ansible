@@ -49,13 +49,16 @@ ${ec2_ip}
         }
 
         stage('Check Ansible Ping') {
-            steps {
-                withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY')]) {
-                sh "ansible -i inventory.ini ec2 -m ping --private-key $SSH_KEY -u ubuntu"
-               }
-            }
+           steps {
+               withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+            sh '''
+                ansible -i ansible/inventory.ini ec2 -m ping \
+                --private-key ${WORKSPACE}/id_rsa \
+                -u ${SSH_USER}
+            '''
         }
-    }  // <-- closes stages
+    }
+}
 
     post {
         always {
