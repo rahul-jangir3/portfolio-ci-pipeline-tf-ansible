@@ -61,7 +61,7 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
                withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
             sh '''
                 ansible -i ansible/inventory.ini ec2 -m ping \
-                --private-key  /home/ubuntu/abc.pem \
+                --private-key   ${SSH_KEY} \
                 -u ${SSH_USER}
             '''
         }      
@@ -72,7 +72,7 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
                  withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
                 sh '''
                 ansible-playbook -i ansible/inventory.ini ansible/main.yml \
-                --private-key  /home/ubuntu/abc.pem \
+                --private-key  ${SSH_KEY} \
                 -u ${SSH_USER}
                 '''
       }
