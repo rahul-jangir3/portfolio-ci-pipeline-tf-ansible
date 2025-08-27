@@ -46,7 +46,8 @@ pipeline {
 
                         // Build inventory content
                         def inventoryContent = """[ec2]
-${ec2_ip}"""
+${ec2_ip}
+"""
 
                         // Ensure ansible dir exists
                         sh "mkdir -p ${ANSIBLE_DIR}"
