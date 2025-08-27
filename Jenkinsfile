@@ -32,14 +32,16 @@ pipeline {
             steps {
                 dir("${TF_DIR}") {
                     script {
-                        // Fetch EC2 public IP from Terraform output
+                        // Get EC2 public IP from Terraform
                         def ec2_ip = sh(script: "terraform output -raw public_ip", returnStdout: true).trim()
                         
-                        // Generate inventory.ini with expected format
-                        def inventoryContent = """[ec2]
-ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/abc.pem
+                        // Minimal inventory (only host + group)
+                        def inventoryContent = """
+[ec2]
+${ec2_ip}
 """
                         writeFile file: "${INVENTORY_FILE}", text: inventoryContent
+                        echo "Inventory generated:\n${inventoryContent}"
                     }
                 }
             }
