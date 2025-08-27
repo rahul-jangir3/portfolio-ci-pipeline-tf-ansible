@@ -45,8 +45,7 @@ pipeline {
                         echo "✅ EC2 Public IP is: ${ec2_ip}"
 
                         // Build inventory content
-                        def inventoryContent = """
-[ec2]
+                        def inventoryContent = """[ec2]
 ${ec2_ip}"""
 
                         // Ensure ansible dir exists
