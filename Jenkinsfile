@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        TF_DIR        = 'terraform'
-        ANSIBLE_DIR   = 'ansible'
+        TF_DIR         = 'terraform'
+        ANSIBLE_DIR    = 'ansible'
         INVENTORY_FILE = "${ANSIBLE_DIR}/inventory.ini"
     }
 
@@ -36,27 +36,27 @@ pipeline {
 
         stage('Generate Inventory') {
             steps {
-                    script {
-                        // Get EC2 public IP from Terraform
-                        def ec2_ip = sh(
-                            script: "cd ${TF_DIR} && terraform output -raw public_ip",
-                            returnStdout: true
-                        ).trim()
-                        echo "✅ EC2 Public IP is: ${ec2_ip}"
+                script {
+                    // Get EC2 public IP from Terraform
+                    def ec2_ip = sh(
+                        script: "cd ${TF_DIR} && terraform output -raw public_ip",
+                        returnStdout: true
+                    ).trim()
+                    echo "✅ EC2 Public IP is: ${ec2_ip}"
 
-                        // Build inventory content
-                        def inventoryContent = """[ec2]
+                    // Build inventory content
+                    def inventoryContent = """[ec2]
 ec2-server ansible_host=${ec2_ip}
 """
 
-                        // Ensure ansible dir exists
-                        sh "mkdir -p ${ANSIBLE_DIR}"
+                    // Ensure ansible dir exists
+                    sh "mkdir -p ${ANSIBLE_DIR}"
 
-                        // Write (overwrite) ansible/inventory.ini
-                        writeFile file: "${ANSIBLE_DIR}/inventory.ini", text: inventoryContent
+                    // Write (overwrite) ansible/inventory.ini
+                    writeFile file: "${ANSIBLE_DIR}/inventory.ini", text: inventoryContent
 
-                        echo "✅ Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
-                    }
+                    echo "✅ Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
+                }
             }
         }
 
@@ -69,14 +69,14 @@ ec2-server ansible_host=${ec2_ip}
                         usernameVariable: 'SSH_USER'
                     )
                 ]) {
-            withEnv(["ANSIBLE_HOST_KEY_CHECKING=False"]) {
-                sh '''
-                    ansible -i ansible/inventory.ini ec2 -m ping \
-                    --private-key ${SSH_KEY} \
-                    -u ${SSH_USER}
-                '''
-            }
-        }
+                    withEnv(["ANSIBLE_HOST_KEY_CHECKING=False"]) {
+                        sh '''
+                            ansible -i ansible/inventory.ini ec2 -m ping \
+                            --private-key ${SSH_KEY} \
+                            -u ${SSH_USER}
+                        '''
+                    }
+                }
             }
         }
 
@@ -89,11 +89,13 @@ ec2-server ansible_host=${ec2_ip}
                         usernameVariable: 'SSH_USER'
                     )
                 ]) {
-                    sh '''
-                        ansible-playbook -i ansible/inventory.ini ansible/main.yml \
-                        --private-key ${SSH_KEY} \
-                        -u ${SSH_USER}
-                    '''
+                    withEnv(["ANSIBLE_HOST_KEY_CHECKING=False"]) {
+                        sh '''
+                            ansible-playbook -i ansible/inventory.ini ansible/main.yml \
+                            --private-key ${SSH_KEY} \
+                            -u ${SSH_USER}
+                        '''
+                    }
                 }
             }
         }
