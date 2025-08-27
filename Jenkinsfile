@@ -56,23 +56,5 @@ ${ec2_ip}
                 }
             }
         }
-
-        stage('Show Website URL') {
-            steps {
-                dir("${TF_DIR}") {
-                    script {
-                        def ec2_ip = sh(script: "terraform output -raw public_ip", returnStdout: true).trim()
-                        echo "🚀 Your website is running at: http://${ec2_ip}"
-                    }
-                }
-            }
-        }
-    }
-
-    post {
-        always {
-            echo "Pipeline finished ✅"
-        }
-    }
 }
 
