@@ -57,7 +57,7 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
                         // Write (overwrite) ansible/inventory.ini
                         writeFile file: "${ANSIBLE_DIR}/inventory.ini", text: inventoryContent
 
-                        echo "✅ Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
+                        echo "Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
                     }
                 }
             }
