@@ -80,15 +80,12 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
         }
     stage('Website URL') {
             steps {
-                script {
-                    def ec2_ip = sh(script: "terraform output -raw public_ip", returnStdout: true).trim()
-                    echo "✅ EC2 Public IP is: ${ec2_ip}"
-                    // Replace with your actual domain or public IP
-                    def websiteURL = "http:// ${ec2_ip}:80"
-
-                    echo "======================================"
-                    echo " 🎉 Your application is live at: ${websiteURL}"
-                    echo "======================================"
+                 script {
+                    def site_url = sh(
+                        script: "terraform -chdir=terraform output -raw public_dns",
+                        returnStdout: true
+                    ).trim()
+                    echo "✅ Your website is live at: http://${site_url}"
                 }
             }
         }
