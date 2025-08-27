@@ -43,10 +43,17 @@ pipeline {
                             returnStdout: true
                         ).trim()
                         echo "✅ EC2 Public IP is: ${ec2_ip}"
-
+                        
+                        withCredentials([
+                           sshUserPrivateKey(
+                           credentialsId: 'abc-ssh',
+                           keyFileVariable: 'SSH_KEY',
+                           usernameVariable: 'SSH_USER'
+                          )
+                        ])
                         // Build inventory content
                         def inventoryContent = """[ec2]
-ec2-server ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WORKSPACE}/id_rsa
+ec2-server ansible_host=${ec2_ip} ansible_user=${SSH_USER} ansible_ssh_private_key_file=${SSH_KEY}
 """
 
                         // Ensure ansible dir exists
@@ -70,10 +77,8 @@ ec2-server ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_fi
                     )
                 ]) {
                     sh '''
-                        ansible -i ansible/inventory.ini ec2 -m ping \
-                        --private-key ${SSH_KEY} \
-                        -u ${SSH_USER}
-                    '''
+                        ansible -i ansible/inventory.ini ec2 -m ping
+                       '''
                 }
             }
         }
