@@ -88,7 +88,7 @@ ec2-server ansible_host=${ec2_ip}
                                     success = true
                                     break
                                 } catch (err) {
-                                    echo "⏳ EC2 not ready yet. Waiting ${retryDelay} seconds..."
+                                    echo "EC2 not ready yet. Waiting ${retryDelay} seconds..."
                                     sleep retryDelay
                                 }
                             }
