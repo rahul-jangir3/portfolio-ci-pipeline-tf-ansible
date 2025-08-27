@@ -94,7 +94,7 @@ ec2-server ansible_host=${ec2_ip}
                             }
 
                             if (!success) {
-                                error " EC2 did not become reachable after ${maxRetries} attempts!"
+                                error "EC2 did not become reachable after ${maxRetries} attempts!"
                             }
                         }
                     }
