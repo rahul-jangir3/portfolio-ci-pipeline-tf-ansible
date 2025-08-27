@@ -36,7 +36,6 @@ pipeline {
 
         stage('Generate Inventory') {
             steps {
-                dir("${TF_DIR}") {
                     script {
                         // Get EC2 public IP from Terraform
                         def ec2_ip = sh(
@@ -48,8 +47,7 @@ pipeline {
                         // Build inventory content
                         def inventoryContent = """
 [ec2]
-ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WORKSPACE}/id_rsa
-"""
+${ec2_ip}"""
 
                         // Ensure ansible dir exists
                         sh "mkdir -p ${ANSIBLE_DIR}"
@@ -57,9 +55,8 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
                         // Write (overwrite) ansible/inventory.ini
                         writeFile file: "${ANSIBLE_DIR}/inventory.ini", text: inventoryContent
 
-                        echo "Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
+                        echo "✅ Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
                     }
-                }
             }
         }
 
