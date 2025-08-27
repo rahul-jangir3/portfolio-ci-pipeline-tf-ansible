@@ -39,7 +39,7 @@ pipeline {
                     script {
                         // Get EC2 public IP from Terraform
                         def ec2_ip = sh(
-                            script: "terraform output -raw public_ip",
+                            script: "cd ${TF_DIR} && terraform output -raw public_ip",
                             returnStdout: true
                         ).trim()
                         echo "✅ EC2 Public IP is: ${ec2_ip}"
