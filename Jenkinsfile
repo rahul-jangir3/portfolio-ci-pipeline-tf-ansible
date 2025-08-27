@@ -84,7 +84,7 @@ ec2-server ansible_host=${ec2_ip}
                                         --private-key ${SSH_KEY} \
                                         -u ${SSH_USER}
                                     """
-                                    echo "✅ EC2 is reachable! Moving on..."
+                                    echo "EC2 is reachable! Moving on..."
                                     success = true
                                     break
                                 } catch (err) {
