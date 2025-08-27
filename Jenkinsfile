@@ -69,12 +69,14 @@ ec2-server ansible_host=${ec2_ip}
                         usernameVariable: 'SSH_USER'
                     )
                 ]) {
-                    sh '''
-                        ansible -i ansible/inventory.ini ec2 -m ping \
-                        --private-key ${SSH_KEY} \
-                        -u ${SSH_USER}
-                    '''
-                }
+            withEnv(["ANSIBLE_HOST_KEY_CHECKING=False"]) {
+                sh '''
+                    ansible -i ansible/inventory.ini ec2 -m ping \
+                    --private-key ${SSH_KEY} \
+                    -u ${SSH_USER}
+                '''
+            }
+        }
             }
         }
 
