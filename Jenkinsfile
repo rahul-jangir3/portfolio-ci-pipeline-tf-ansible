@@ -3,6 +3,7 @@ pipeline {
   environment {
     TF_DIR = 'terraform'
     ANSIBLE_DIR = 'ansible'
+    INVENTORY_FILE = "${ANSIBLE_DIR}/inventory.ini"
   }
   stages {
     stage('Checkout pipeline repo') {
@@ -27,60 +28,49 @@ pipeline {
       }
     }
 
-    stage('Prepare Ansible Inventory') {
-      steps {
-        // Read terraform outputs and write inventory.ini in workspace root (group: ec2)
-        script {
-          def public_ip = sh(script: "terraform -chdir=terraform output -raw public_ip", returnStdout: true).trim()
-          def public_dns = sh(script: "terraform -chdir=terraform output -raw public_dns", returnStdout: true).trim()
-          if (!public_ip) {
-            error "Failed to get public_ip from terraform outputs"
-          }
-          echo "Terraform instance IP: ${public_ip}"
-          // write inventory.ini (overwrites existing); keep it minimal to avoid parsing errors
-          sh """
-            cat > inventory.ini <<EOF
-[ec2]
-${public_ip} ansible_user=ubuntu
-EOF
-            ls -la inventory.ini
-            cat inventory.ini
-          """
-          // expose values for next stage
-          env.INSTANCE_IP = public_ip
-          env.INSTANCE_DNS = public_dns
+    stage('Generate Inventory') {
+            steps {
+                dir("${TF_DIR}") {
+                    script {
+                        // Fetch EC2 public IP from Terraform output
+                        def ec2_ip = sh(script: "terraform output -raw public_ip", returnStdout: true).trim()
+                        
+                        // Generate inventory.ini with expected format
+                        def inventoryContent = """[ec2]
+ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=~/abc.pem
+"""
+                        writeFile file: "${INVENTORY_FILE}", text: inventoryContent
+                    }
+                }
+            }
         }
-      }
+
+        stage('Check Ansible Ping') {
+            steps {
+                dir("${ANSIBLE_DIR}") {
+                    sshagent(credentials: ['abc-ssh']) {
+                        sh "ansible -i inventory.ini ec2 -m ping"
+                    }
+                }
+            }
+        }
+
+        stage('Show Website URL') {
+            steps {
+                dir("${TF_DIR}") {
+                    script {
+                        def ec2_ip = sh(script: "terraform output -raw public_ip", returnStdout: true).trim()
+                        echo "🚀 Your website is running at: http://${ec2_ip}"
+                    }
+                }
+            }
+        }
     }
 
-    stage('Run Ansible Playbook') {
-      steps {
-        // Bind SSH private key credential and run ansible against inventory.ini group ec2
-        withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-          sh '''
-            # make key only readable
-            chmod 600 ${SSH_KEY} || true
-            echo "Using SSH key: ${SSH_KEY}, user: ${SSH_USER}"
-            # Run ansible (main.yml at repo root). Limit to group ec2.
-            ansible-playbook -i inventory.ini -l ec2 main.yml --private-key ${SSH_KEY} -e ansible_python_interpreter=/usr/bin/python3 -v
-          '''
+    post {
+        always {
+            echo "Pipeline finished ✅"
         }
-      }
     }
-
-    stage('Show site URL') {
-      steps {
-        script {
-          def dns = sh(script: "terraform -chdir=${TF_DIR} output -raw public_dns", returnStdout: true).trim()
-          echo "✅ Your site should be live at: http://${dns}"
-        }
-      }
-    }
-  }
-  post {
-    failure {
-      echo "Pipeline failed — check Terraform and Ansible logs above."
-    }
-  }
 }
 
