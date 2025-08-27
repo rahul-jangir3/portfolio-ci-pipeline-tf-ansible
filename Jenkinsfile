@@ -50,11 +50,9 @@ ${ec2_ip}
 
         stage('Check Ansible Ping') {
             steps {
-                dir("${ANSIBLE_DIR}") {
-                    sshagent(credentials: ['abc-ssh']) {
-                        sh "ansible -i inventory.ini ec2 -m ping"
-                    }
-                }
+                withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY')]) {
+                sh "ansible -i inventory.ini ec2 -m ping --private-key $SSH_KEY -u ubuntu"
+               }
             }
         }
     }  // <-- closes stages
