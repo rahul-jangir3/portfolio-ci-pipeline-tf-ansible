@@ -34,6 +34,10 @@ pipeline {
             steps {
                 dir("${TF_DIR}") {
                     script {
+                    def ip = sh(script: "terraform output -raw public_ip", returnStdout: true).trim()
+                    echo "✅ EC2 Public IP is: ${ip}"
+                    // Store it in global environment
+                    env.EC2_PUBLIC_IP = ip
                     sh """
                         echo '[ec2]' > ansible/inventory.ini
                         echo '${EC2_PUBLIC_IP} ansible_user=ubuntu ansible_ssh_private_key_file=~/.ssh/id_rsa' >> ansible/inventory.ini
