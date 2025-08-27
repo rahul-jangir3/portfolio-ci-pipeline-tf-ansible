@@ -70,11 +70,33 @@ ec2-server ansible_host=${ec2_ip}
                     )
                 ]) {
                     withEnv(["ANSIBLE_HOST_KEY_CHECKING=False"]) {
-                        sh '''
-                            ansible -i ansible/inventory.ini ec2 -m ping \
-                            --private-key ${SSH_KEY} \
-                            -u ${SSH_USER}
-                        '''
+                        script {
+                            // Retry logic
+                            def maxRetries = 10
+                            def retryDelay = 15 // seconds
+                            def success = false
+
+                            for (int i = 1; i <= maxRetries; i++) {
+                                echo "🔄 Trying Ansible ping... Attempt ${i} of ${maxRetries}"
+                                try {
+                                    sh """
+                                        ansible -i ansible/inventory.ini ec2 -m ping \
+                                        --private-key ${SSH_KEY} \
+                                        -u ${SSH_USER}
+                                    """
+                                    echo "✅ EC2 is reachable! Moving on..."
+                                    success = true
+                                    break
+                                } catch (err) {
+                                    echo "⏳ EC2 not ready yet. Waiting ${retryDelay} seconds..."
+                                    sleep retryDelay
+                                }
+                            }
+
+                            if (!success) {
+                                error "❌ EC2 did not become reachable after ${maxRetries} attempts!"
+                            }
+                        }
                     }
                 }
             }
