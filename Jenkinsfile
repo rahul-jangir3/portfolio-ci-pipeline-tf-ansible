@@ -46,7 +46,7 @@ pipeline {
 
                         // Build inventory content
                         def inventoryContent = """[ec2]
-ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WORKSPACE}/id_rsa
+ec2-server ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WORKSPACE}/id_rsa
 """
 
                         // Ensure ansible dir exists
