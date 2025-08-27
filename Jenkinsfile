@@ -60,7 +60,7 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
             steps {
                withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
             sh '''
-                ansible -i ~/portfolio-ci-pipeline/ansible/inventory.ini ec2 -m ping \
+                ansible -i /home/ubuntu/portfolio-ci-pipeline/ansible/inventory.ini ec2 -m ping \
                 --private-key  /home/ubuntu/abc.pem \
                 -u ${SSH_USER}
             '''
