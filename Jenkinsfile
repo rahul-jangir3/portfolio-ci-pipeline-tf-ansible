@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        TF_DIR = 'terraform'
-        ANSIBLE_DIR = 'ansible'
+        TF_DIR        = 'terraform'
+        ANSIBLE_DIR   = 'ansible'
         INVENTORY_FILE = "${ANSIBLE_DIR}/inventory.ini"
     }
 
@@ -17,7 +17,11 @@ pipeline {
         stage('Terraform Init & Apply') {
             steps {
                 withCredentials([
-                    usernamePassword(credentialsId: 'aws-creds', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')
+                    usernamePassword(
+                        credentialsId: 'aws-creds',
+                        usernameVariable: 'AWS_ACCESS_KEY_ID',
+                        passwordVariable: 'AWS_SECRET_ACCESS_KEY'
+                    )
                 ]) {
                     sh '''
                         export AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
@@ -34,53 +38,70 @@ pipeline {
             steps {
                 dir("${TF_DIR}") {
                     script {
-                // Get EC2 public IP from Terraform
-                def ec2_ip = sh(script: "terraform output -raw public_ip", returnStdout: true).trim()
-                echo "✅ EC2 Public IP is: ${ec2_ip}"
+                        // Get EC2 public IP from Terraform
+                        def ec2_ip = sh(
+                            script: "terraform output -raw public_ip",
+                            returnStdout: true
+                        ).trim()
+                        echo "✅ EC2 Public IP is: ${ec2_ip}"
 
-                // Build inventory content
-                def inventoryContent = """
+                        // Build inventory content
+                        def inventoryContent = """
 [ec2]
 ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WORKSPACE}/id_rsa
 """
 
-                // Ensure ansible dir exists
-                sh "mkdir -p ${ANSIBLE_DIR}"
+                        // Ensure ansible dir exists
+                        sh "mkdir -p ${ANSIBLE_DIR}"
 
-                // Write (overwrite) ansible/inventory.ini
-                writeFile file: "${ANSIBLE_DIR}/inventory.ini", text: inventoryContent
+                        // Write (overwrite) ansible/inventory.ini
+                        writeFile file: "${ANSIBLE_DIR}/inventory.ini", text: inventoryContent
 
-                echo "✅ Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
-            }
+                        echo "✅ Updated ansible/inventory.ini with EC2 IP: ${ec2_ip}"
+                    }
                 }
             }
         }
 
         stage('Check Ansible Ping') {
             steps {
-               withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-            sh '''
-                ansible -i ansible/inventory.ini ec2 -m ping \
-                --private-key   ${SSH_KEY} \
-                -u ${SSH_USER}
-            '''
-        }      
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'abc-ssh',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                        ansible -i ansible/inventory.ini ec2 -m ping \
+                        --private-key ${SSH_KEY} \
+                        -u ${SSH_USER}
+                    '''
+                }
             }
         }
-         stage('Run Ansible Playbook') {
+
+        stage('Run Ansible Playbook') {
             steps {
-                 withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
-                sh '''
-                ansible-playbook -i ansible/inventory.ini ansible/main.yml \
-                --private-key  ${SSH_KEY} \
-                -u ${SSH_USER}
-                '''
-      }
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'abc-ssh',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+                    sh '''
+                        ansible-playbook -i ansible/inventory.ini ansible/main.yml \
+                        --private-key ${SSH_KEY} \
+                        -u ${SSH_USER}
+                    '''
+                }
             }
         }
-    stage('Website URL') {
+
+        stage('Website URL') {
             steps {
-                 script {
+                script {
                     def site_url = sh(
                         script: "terraform -chdir=terraform output -raw public_dns",
                         returnStdout: true
@@ -88,12 +109,6 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
                     echo "✅ Your website is live at: http://${site_url}"
                 }
             }
-        }
-    }
-
-    post {
-        always {
-            echo "Pipeline finished ✅"
         }
     }
 }
