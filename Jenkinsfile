@@ -58,9 +58,13 @@ ec2 ansible_host=${ec2_ip} ansible_user=ubuntu ansible_ssh_private_key_file=${WO
 
         stage('Check Ansible Ping') {
             steps {
-                 sh '''
-                    ansible -i ansible/inventory.ini ec2 -m ping
-                 '''      
+               withCredentials([sshUserPrivateKey(credentialsId: 'abc-ssh', keyFileVariable: 'SSH_KEY', usernameVariable: 'SSH_USER')]) {
+            sh '''
+                ANSIBLE_HOST_KEY_CHECKING=False ansible -i ansible/inventory.ini ec2 -m ping \
+                --private-key ${SSH_KEY} \
+                -u ${SSH_USER}
+            '''
+        }      
             }
         }
     }
