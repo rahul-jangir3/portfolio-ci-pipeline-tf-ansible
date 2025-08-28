@@ -129,7 +129,7 @@ ec2-server ansible_host=${ec2_ip}
                         script: "terraform -chdir=terraform output -raw public_dns",
                         returnStdout: true
                     ).trim()
-                    echo "✅ Your website is live at: http://${site_url}"
+                    echo "Your website is live at: http://${site_url}"
                 }
             }
         }
